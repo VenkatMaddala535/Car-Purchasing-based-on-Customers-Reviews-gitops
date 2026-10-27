@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: car-project
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: car-project
+  template:
+    metadata:
+      labels:
+        app: car-project
+    spec:
+      containers:
+        - name: car-project
+          image: venkatmaddala/car-purchasing-based-on-customers-reviews:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: car-secret
+                  key: secretData
+
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              TARGET_FILE=$(find /app -name settings.py | head -n 1)
+
+              if [ -f "$TARGET_FILE" ]; then
+                echo "" >> "$TARGET_FILE"
+                echo "ALLOWED_HOSTS = ['pipeline.d2.com', 'localhost', '127.0.0.1', '10.105.118.228']" >> "$TARGET_FILE"
+                echo "CSRF_TRUSTED_ORIGINS = ['http://pipeline.d2.com', 'https://pipeline.d2.com']" >> "$TARGET_FILE"
+                echo "Patched $TARGET_FILE"
+              else
+                echo "ERROR: settings.py not found"
+                exit 1
+              fi
+
+              exec /entrypoint.sh
